@@ -1,4 +1,3 @@
-```yaml
 name: Build and Release
 
 on:
@@ -153,4 +152,3 @@ jobs:
         run: |
           if [ -n "${GITHUB_WORKSPACE}" ]; then
             find "${GITHUB_WORKSPACE}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
-```
