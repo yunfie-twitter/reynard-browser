@@ -1,3 +1,4 @@
+```yaml
 name: Build and Release
 
 on:
@@ -10,10 +11,20 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-14
+
     outputs:
       artifact: ${{ steps.upload-artifact.outputs.artifact }}
+
     steps:
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Show Xcode / SDK version
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
       - name: Prepare workspace
         shell: bash
         run: |
@@ -34,6 +45,14 @@ jobs:
 
       - name: Checkout idevice submodule
         run: git submodule update --init --depth 1 --recursive support/idevice
+
+      - name: Cache mozbuild
+        uses: actions/cache@v4
+        with:
+          path: ~/.mozbuild
+          key: mozbuild-${{ runner.os }}-${{ hashFiles('engine/firefox/**') }}
+          restore-keys: |
+            mozbuild-${{ runner.os }}-
 
       - name: Update Gecko
         run: ./tools/development/update-gecko.sh
@@ -72,7 +91,6 @@ jobs:
         run: |
           if [ -n "${GITHUB_WORKSPACE}" ]; then
             find "${GITHUB_WORKSPACE}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
-          fi
 
   release:
     runs-on: ubuntu-latest
@@ -80,6 +98,7 @@ jobs:
     if: github.event.inputs.create_nightly && github.event.inputs.create_nightly == 'true'
     permissions:
       contents: write
+
     steps:
       - name: Prepare workspace
         shell: bash
@@ -120,12 +139,11 @@ jobs:
           body: |
             **Build:** ${{ steps.version.outputs.current_build }}
             **Version:** ${{ steps.version.outputs.current_version }}
-            **Engine:** [${{ steps.version.outputs.engine_revision }}](https://github.com/mozilla-firefox/firefox/commit/${{ steps.version.outputs.engine_revision }})
-            **Commit:** [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            **Engine:** https://github.com/mozilla-firefox/firefox/commit/${{ steps.version.outputs.engine_revision }}
+            **Commit:** https://github.com/${{ github.repository }}/commit/${{ github.sha }}
 
-            This is a nightly release [created automatically with GitHub Actions workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}).
+            Auto nightly build.
 
-            Before using this release, please read the installation instruction in the README at [#Installation](https://github.com/minh-ton/reynard-browser#installation).
           files: |
             ./dist/Reynard.ipa
 
@@ -135,4 +153,4 @@ jobs:
         run: |
           if [ -n "${GITHUB_WORKSPACE}" ]; then
             find "${GITHUB_WORKSPACE}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
-          fi
+```
