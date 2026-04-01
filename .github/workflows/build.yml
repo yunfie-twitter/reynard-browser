@@ -46,11 +46,15 @@ jobs:
       - name: Checkout idevice submodule
         run: git submodule update --init --depth 1 --recursive support/idevice
 
+      - name: Get Firefox submodule hash
+        id: firefox-hash
+        run: echo "hash=$(git submodule status engine/firefox | awk '{print $1}' | tr -d '-+')" >> $GITHUB_OUTPUT
+
       - name: Cache mozbuild
         uses: actions/cache@v4
         with:
           path: ~/.mozbuild
-          key: mozbuild-${{ runner.os }}-${{ hashFiles('engine/firefox/**') }}
+          key: mozbuild-${{ runner.os }}-${{ steps.firefox-hash.outputs.hash }}
           restore-keys: |
             mozbuild-${{ runner.os }}-
 
@@ -91,6 +95,7 @@ jobs:
         run: |
           if [ -n "${GITHUB_WORKSPACE}" ]; then
             find "${GITHUB_WORKSPACE}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+          fi
 
   release:
     runs-on: ubuntu-latest
@@ -153,3 +158,4 @@ jobs:
         run: |
           if [ -n "${GITHUB_WORKSPACE}" ]; then
             find "${GITHUB_WORKSPACE}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+          fi
