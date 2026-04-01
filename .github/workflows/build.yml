@@ -16,12 +16,16 @@ jobs:
       artifact: ${{ steps.upload-artifact.outputs.artifact }}
 
     steps:
-      - name: Select latest Xcode
+      - name: Select Xcode
         run: |
-          sudo xcode-select -s $(ls -d /Applications/Xcode*.app | sort -V | tail -n 1)
-
-      - name: Verify SDK
-        run: |
+          set -euo pipefail
+          if ls -d /Applications/Xcode_16*.app >/dev/null 2>&1; then
+            sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -n 1)"
+          elif [ -d /Applications/Xcode.app ]; then
+            sudo xcode-select -s /Applications/Xcode.app
+          else
+            sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1)"
+          fi
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
 
