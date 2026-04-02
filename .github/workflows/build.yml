@@ -48,14 +48,15 @@ jobs:
         id: firefox-hash
         run: echo "hash=$(git submodule status engine/firefox | awk '{print $1}' | tr -d '-+')" >> $GITHUB_OUTPUT
 
-      - name: Patch mozconfig for CI linker
+      - name: Inject linker option via wrapper mozconfig
         run: |
-          MOZCONFIG="engine/firefox/.mozconfig"
-          if ! grep -q 'enable-linker' "$MOZCONFIG"; then
-            echo '' >> "$MOZCONFIG"
-            echo '# CI: explicitly select Apple ld to avoid linker detection failures' >> "$MOZCONFIG"
-            echo 'ac_add_options --enable-linker=ld' >> "$MOZCONFIG"
-          fi
+          ORIGINAL="$(cat engine/firefox/.mozconfig)"
+          WRAPPER="${GITHUB_WORKSPACE}/.ci-mozconfig"
+          cat > "$WRAPPER" << 'EOF'
+          . ${0%/*}/engine/firefox/.mozconfig
+          ac_add_options --enable-linker=ld
+          EOF
+          echo "MOZCONFIG=${WRAPPER}" >> "$GITHUB_ENV"
 
       - name: Cache mozbuild
         uses: actions/cache@v4
