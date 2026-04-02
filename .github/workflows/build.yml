@@ -50,12 +50,11 @@ jobs:
 
       - name: Inject linker option via wrapper mozconfig
         run: |
-          ORIGINAL="$(cat engine/firefox/.mozconfig)"
           WRAPPER="${GITHUB_WORKSPACE}/.ci-mozconfig"
-          cat > "$WRAPPER" << 'EOF'
-          . ${0%/*}/engine/firefox/.mozconfig
-          ac_add_options --enable-linker=ld
-          EOF
+          cat engine/firefox/.mozconfig > "$WRAPPER"
+          echo '' >> "$WRAPPER"
+          echo '# CI: use Apple ld to avoid linker detection failures' >> "$WRAPPER"
+          echo 'ac_add_options --enable-linker=ld' >> "$WRAPPER"
           echo "MOZCONFIG=${WRAPPER}" >> "$GITHUB_ENV"
 
       - name: Cache mozbuild
