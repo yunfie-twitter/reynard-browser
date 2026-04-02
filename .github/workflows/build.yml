@@ -16,16 +16,10 @@ jobs:
       artifact: ${{ steps.upload-artifact.outputs.artifact }}
 
     steps:
-      - name: Select Xcode
+      - name: Select latest Xcode
         run: |
           set -euo pipefail
-          if ls -d /Applications/Xcode_16*.app >/dev/null 2>&1; then
-            sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -n 1)"
-          elif [ -d /Applications/Xcode.app ]; then
-            sudo xcode-select -s /Applications/Xcode.app
-          else
-            sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1)"
-          fi
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1)"
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
 
@@ -53,6 +47,15 @@ jobs:
       - name: Get Firefox submodule hash
         id: firefox-hash
         run: echo "hash=$(git submodule status engine/firefox | awk '{print $1}' | tr -d '-+')" >> $GITHUB_OUTPUT
+
+      - name: Patch mozconfig for CI linker
+        run: |
+          MOZCONFIG="engine/firefox/.mozconfig"
+          if ! grep -q 'enable-linker' "$MOZCONFIG"; then
+            echo '' >> "$MOZCONFIG"
+            echo '# CI: explicitly select Apple ld to avoid linker detection failures' >> "$MOZCONFIG"
+            echo 'ac_add_options --enable-linker=ld' >> "$MOZCONFIG"
+          fi
 
       - name: Cache mozbuild
         uses: actions/cache@v4
