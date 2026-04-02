@@ -48,15 +48,6 @@ jobs:
         id: firefox-hash
         run: echo "hash=$(git submodule status engine/firefox | awk '{print $1}' | tr -d '-+')" >> $GITHUB_OUTPUT
 
-      - name: Inject linker option via wrapper mozconfig
-        run: |
-          WRAPPER="${GITHUB_WORKSPACE}/.ci-mozconfig"
-          cat engine/firefox/.mozconfig > "$WRAPPER"
-          echo '' >> "$WRAPPER"
-          echo '# CI: use Apple ld to avoid linker detection failures' >> "$WRAPPER"
-          echo 'ac_add_options --enable-linker=ld' >> "$WRAPPER"
-          echo "MOZCONFIG=${WRAPPER}" >> "$GITHUB_ENV"
-
       - name: Cache mozbuild
         uses: actions/cache@v4
         with:
@@ -70,6 +61,18 @@ jobs:
 
       - name: Apply Gecko patches
         run: ./tools/development/apply-patches.sh
+
+      - name: Inject linker option via wrapper mozconfig
+        run: |
+          MOZCONFIG_SRC="${GITHUB_WORKSPACE}/engine/firefox/.mozconfig"
+          WRAPPER="${GITHUB_WORKSPACE}/.ci-mozconfig"
+          cat "$MOZCONFIG_SRC" > "$WRAPPER"
+          echo '' >> "$WRAPPER"
+          echo '# CI: use Apple ld to avoid linker detection failures' >> "$WRAPPER"
+          echo 'ac_add_options --enable-linker=ld' >> "$WRAPPER"
+          echo "MOZCONFIG=${WRAPPER}" >> "$GITHUB_ENV"
+          echo "--- wrapper mozconfig ---"
+          cat "$WRAPPER"
 
       - name: Build idevice
         run: ./tools/development/build-idevice.sh
