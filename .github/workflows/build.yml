@@ -32,6 +32,11 @@ jobs:
             current=$(dirname "${current}")
           done
 
+      - name: Install lld
+        run: |
+          brew install llvm
+          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
