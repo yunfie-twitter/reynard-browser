@@ -32,10 +32,11 @@ jobs:
             current=$(dirname "${current}")
           done
 
-      - name: Install lld
-        run: |
-          brew install llvm
-          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+      # ✅ lld インストールは削除（iOS クロスビルドでは不要）
+      # - name: Install lld
+      #   run: |
+      #     brew install llvm
+      #     echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -71,6 +72,11 @@ jobs:
         run: ./tools/development/build-idevice.sh
 
       - name: Build the app
+        env:
+          # Apple純正リンカを明示
+          LD: /usr/bin/ld
+          CC: clang
+          CXX: clang++
         run: ./tools/release/build-app.sh
 
       - name: Create .ipa file
