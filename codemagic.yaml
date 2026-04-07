@@ -1,1 +1,96 @@
+workflows:
+  ios-build:
+    name: Reynard Browser - iOS Build
+    max_build_duration: 120
+    instance_type: mac_mini_m2
 
+    environment:
+      xcode: latest
+      cocoapods: default
+      vars:
+        XCODE_PROJECT: "browser/Reynard.xcodeproj"
+        XCODE_SCHEME: "Reynard"
+        BUNDLE_ID: "com.yunfie.reynard"
+      # 署名が必要な場合は以下を有効化して Codemagic の
+      # Environment Variables に設定してください
+      # ios_signing:
+      #   distribution_type: ad_hoc   # app_store / development / ad_hoc
+      #   bundle_identifier: com.yunfie.reynard
+
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: main
+          include: true
+        - pattern: develop
+          include: true
+
+    scripts:
+      - name: Submodule の初期化
+        script: |
+          git submodule update --init --recursive
+
+      - name: GeckoView ディストリビューションの確認
+        script: |
+          # 事前ビルド済み engine が存在する場合はスキップ
+          if [ ! -d "engine/firefox/obj-aarch64-apple-ios/dist" ]; then
+            echo "WARNING: GeckoView dist not found. Pre-built dist is required."
+            echo "Please build GeckoView first or provide GECKO_DIST via environment variable."
+            exit 1
+          fi
+
+      - name: xcconfig の BUILD 番号を設定
+        script: |
+          BUILD_NUMBER=${CM_BUILD_NUMBER:-0}
+          sed -i '' "s/CURRENT_BUILD = UNKNOWN/CURRENT_BUILD = $BUILD_NUMBER/" \
+            browser/Configuration/Reynard.xcconfig
+
+      - name: CocoaPods インストール（Podfile が存在する場合）
+        script: |
+          if [ -f "browser/Podfile" ]; then
+            cd browser && pod install
+          else
+            echo "Podfile が見つかりません。スキップします。"
+          fi
+
+      - name: Xcode ビルド（コード署名なし）
+        script: |
+          xcodebuild \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath build/Reynard.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            archive | xcpretty
+
+      # 署名済み IPA を出力する場合は上記を下記に差し替えてください:
+      # - name: Xcode Archive & Export IPA
+      #   script: |
+      #     xcode-project build-ipa \
+      #       --project "$XCODE_PROJECT" \
+      #       --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/Reynard.xcarchive/**
+      # 署名済み IPA を使う場合:
+      # - build/ios/ipa/*.ipa
+      # - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      # App Store Connect へ配信する場合は有効化
+      # app_store_connect:
+      #   api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+      #   key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+      #   issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+      email:
+        recipients:
+          - $CM_SUBMITTER_EMAIL
+        notify:
+          success: true
+          failure: true
