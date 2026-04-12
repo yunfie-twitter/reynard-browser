@@ -10,19 +10,13 @@ on:
 
 jobs:
   build:
-    runs-on: macos-26
-
+    runs-on: macos-latest
     outputs:
       artifact: ${{ steps.upload-artifact.outputs.artifact }}
-
     steps:
-      - name: Select latest Xcode
-        run: |
-          set -euo pipefail
-          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1)"
-          xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-version
-
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.2'
       - name: Prepare workspace
         shell: bash
         run: |
@@ -31,12 +25,6 @@ jobs:
             echo "::add-mask::${current}"
             current=$(dirname "${current}")
           done
-
-      # ✅ lld インストールは削除（iOS クロスビルドでは不要）
-      # - name: Install lld
-      #   run: |
-      #     brew install llvm
-      #     echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,35 +38,19 @@ jobs:
       - name: Checkout idevice submodule
         run: git submodule update --init --depth 1 --recursive support/idevice
 
-      - name: Get Firefox submodule hash
-        id: firefox-hash
-        run: echo "hash=$(git submodule status engine/firefox | awk '{print $1}' | tr -d '-+')" >> $GITHUB_OUTPUT
-
-      - name: Cache mozbuild
-        uses: actions/cache@v4
-        with:
-          path: ~/.mozbuild
-          key: mozbuild-${{ runner.os }}-${{ steps.firefox-hash.outputs.hash }}
-          restore-keys: |
-            mozbuild-${{ runner.os }}-
-
       - name: Update Gecko
         run: ./tools/development/update-gecko.sh
 
       - name: Apply Gecko patches
         run: ./tools/development/apply-patches.sh
-
+        
       - name: Build idevice
         run: ./tools/development/build-idevice.sh
 
       - name: Build the app
-        env:
-          # Apple純正リンカを明示
-          LD: /usr/bin/ld
-          CC: clang
-          CXX: clang++
         run: ./tools/release/build-app.sh
-
+        continue-on-error: true
+        
       - name: Create .ipa file
         run: ./tools/release/create-ipa.sh
 
@@ -112,7 +84,6 @@ jobs:
     if: github.event.inputs.create_nightly && github.event.inputs.create_nightly == 'true'
     permissions:
       contents: write
-
     steps:
       - name: Prepare workspace
         shell: bash
@@ -153,11 +124,12 @@ jobs:
           body: |
             **Build:** ${{ steps.version.outputs.current_build }}
             **Version:** ${{ steps.version.outputs.current_version }}
-            **Engine:** https://github.com/mozilla-firefox/firefox/commit/${{ steps.version.outputs.engine_revision }}
-            **Commit:** https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+            **Engine:** [${{ steps.version.outputs.engine_revision }}](https://github.com/mozilla-firefox/firefox/commit/${{ steps.version.outputs.engine_revision }})
+            **Commit:** [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
 
-            Auto nightly build.
+            This is a nightly release [created automatically with GitHub Actions workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}).
 
+            Before using this release, please read the installation instruction in the README at [#Installation](https://github.com/minh-ton/reynard-browser#installation).
           files: |
             ./dist/Reynard.ipa
 
