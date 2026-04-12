@@ -90,7 +90,7 @@ workflows:
       #   issuer_id: $APP_STORE_CONNECT_ISSUER_ID
       email:
         recipients:
-          - $CM_SUBMITTER_EMAIL
+          - yunfie.twitter@gmail.com
         notify:
           success: true
           failure: true
